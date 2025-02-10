@@ -143,6 +143,14 @@ static const uint32_t flash_flexspi_nor_base_lut[][MEMC_FLEXSPI_CMD_PER_SEQ] = {
 	},
 };
 
+static ALWAYS_INLINE bool area_is_subregion(const struct device *dev, off_t offset, size_t size)
+{
+	struct flash_flexspi_nor_data *data = dev->data;
+
+	return ((offset >= 0) && (offset < data->size) &&
+		((data->size - offset) >= size));
+}
+
 /* Helper so we can read flash ID without flash access for XIP */
 static int flash_flexspi_nor_read_id_helper(struct flash_flexspi_nor_data *data,
 		uint8_t *vendor_id)
@@ -316,6 +324,15 @@ static int flash_flexspi_nor_read(const struct device *dev, off_t offset,
 		void *buffer, size_t len)
 {
 	struct flash_flexspi_nor_data *data = dev->data;
+
+	if (!buffer) {
+		return -EINVAL;
+	}
+
+	if (!area_is_subregion(dev, offset, len)) {
+		return -EINVAL;
+	}
+
 	uint8_t *src = memc_flexspi_get_ahb_address(&data->controller,
 						    data->port,
 						    offset);
@@ -329,6 +346,15 @@ static int flash_flexspi_nor_write(const struct device *dev, off_t offset,
 		const void *buffer, size_t len)
 {
 	struct flash_flexspi_nor_data *data = dev->data;
+
+	if (!buffer) {
+		return -EINVAL;
+	}
+
+	if (!area_is_subregion(dev, offset, len)) {
+		return -EINVAL;
+	}
+
 	size_t size = len;
 	uint8_t *src = (uint8_t *) buffer;
 	int i;
@@ -345,6 +371,7 @@ static int flash_flexspi_nor_write(const struct device *dev, off_t offset,
 		 * code and data accessed must reside in ram.
 		 */
 		key = irq_lock();
+		memc_flexspi_wait_bus_idle(&data->controller);
 	}
 
 	while (len) {
@@ -355,6 +382,13 @@ static int flash_flexspi_nor_write(const struct device *dev, off_t offset,
 		i = MIN(SPI_NOR_PAGE_SIZE - (offset % SPI_NOR_PAGE_SIZE), len);
 #ifdef CONFIG_FLASH_MCUX_FLEXSPI_NOR_WRITE_BUFFER
 		memcpy(nor_write_buf, src, i);
+
+		/* As memcpy could cause an XIP access,
+		 * we need to wait for XIP prefetch to be finished again
+		 */
+		if (memc_flexspi_is_running_xip(&data->controller)) {
+			memc_flexspi_wait_bus_idle(&data->controller);
+		}
 #endif
 		flash_flexspi_nor_write_enable(data);
 #ifdef CONFIG_FLASH_MCUX_FLEXSPI_NOR_WRITE_BUFFER
@@ -385,6 +419,11 @@ static int flash_flexspi_nor_erase(const struct device *dev, off_t offset,
 		size_t size)
 {
 	struct flash_flexspi_nor_data *data = dev->data;
+
+	if (!area_is_subregion(dev, offset, size)) {
+		return -EINVAL;
+	}
+
 	const size_t num_sectors = size / SPI_NOR_SECTOR_SIZE;
 	const size_t num_blocks = size / SPI_NOR_BLOCK_SIZE;
 
@@ -412,6 +451,7 @@ static int flash_flexspi_nor_erase(const struct device *dev, off_t offset,
 		 * code and data accessed must reside in ram.
 		 */
 		key = irq_lock();
+		memc_flexspi_wait_bus_idle(&data->controller);
 	}
 
 	if ((offset == 0) && (size == data->config.flashSize * KB(1))) {
@@ -1012,7 +1052,7 @@ static int flash_flexspi_nor_check_jedec(struct flash_flexspi_nor_data *data,
 				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_SE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32);
 		flexspi_lut[ERASE_BLOCK][0] = FLEXSPI_LUT_SEQ(
-				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xDC,
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_BE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32),
 		/* Read instruction used for polling is 0x05 */
 		data->legacy_poll = true;
@@ -1043,7 +1083,7 @@ static int flash_flexspi_nor_check_jedec(struct flash_flexspi_nor_data *data,
 				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_SE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32);
 		flexspi_lut[ERASE_BLOCK][0] = FLEXSPI_LUT_SEQ(
-				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xDC,
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_BE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32),
 		/* Read instruction used for polling is 0x05 */
 		data->legacy_poll = true;
@@ -1074,7 +1114,7 @@ static int flash_flexspi_nor_check_jedec(struct flash_flexspi_nor_data *data,
 				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_SE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32);
 		flexspi_lut[ERASE_BLOCK][0] = FLEXSPI_LUT_SEQ(
-				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, 0xDC,
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_BE_4B,
 				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32),
 		/* Read instruction used for polling is 0x05 */
 		data->legacy_poll = true;
@@ -1083,6 +1123,43 @@ static int flash_flexspi_nor_check_jedec(struct flash_flexspi_nor_data *data,
 				kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x01);
 		/* Device uses bit 6 of status reg 1 for QE */
 		return flash_flexspi_nor_quad_enable(data, flexspi_lut, JESD216_DW15_QER_VAL_S1B6);
+	case 0x19ba20: /* MT25QL256 */
+	case 0x20ba20: /* MT25QL512 */
+	case 0x21ba20: /* MT25QL01G */
+	case 0x22ba20: /* MT25QL02G */
+	case 0x19bb20: /* MT25QU256 */
+	case 0x20bb20: /* MT25QU512 */
+	case 0x21bb20: /* MT25QU01G */
+	case 0x22bb20: /* MT25QU02G */
+		/* MT25Q flash with more than 32MB, use 4 byte read/write */
+		flexspi_lut[READ][0] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_4READ_4B,
+				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_4PAD, 32);
+		/* Flash needs 10 dummy cycles */
+		flexspi_lut[READ][1] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_DUMMY_SDR, kFLEXSPI_4PAD, 10,
+				kFLEXSPI_Command_READ_SDR, kFLEXSPI_4PAD, 0x04);
+		/* Update PROGRAM commands for 4 byte 1S-4S-4S mode */
+		flexspi_lut[PAGE_PROGRAM][0] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_PP_1_4_4_4B,
+				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_4PAD, 32);
+		flexspi_lut[PAGE_PROGRAM][1] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_WRITE_SDR, kFLEXSPI_4PAD, 0x4,
+				kFLEXSPI_Command_STOP, kFLEXSPI_1PAD, 0x0);
+		/* Update ERASE commands for 4 byte mode */
+		flexspi_lut[ERASE_SECTOR][0] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_SE_4B,
+				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32);
+		flexspi_lut[ERASE_BLOCK][0] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_BE_4B,
+				kFLEXSPI_Command_RADDR_SDR, kFLEXSPI_1PAD, 32),
+		/* Read instruction used for polling is 0x05 */
+		data->legacy_poll = true;
+		flexspi_lut[READ_STATUS_REG][0] = FLEXSPI_LUT_SEQ(
+				kFLEXSPI_Command_SDR, kFLEXSPI_1PAD, SPI_NOR_CMD_RDSR,
+				kFLEXSPI_Command_READ_SDR, kFLEXSPI_1PAD, 0x01);
+		/* Device has no QE bit, 1-4-4 and 1-1-4 is always enabled */
+		return 0;
 	default:
 		return -ENOTSUP;
 	}

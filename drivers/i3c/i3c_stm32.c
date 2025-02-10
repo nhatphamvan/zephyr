@@ -157,6 +157,7 @@ struct i3c_stm32_data {
 		uint8_t num_addr; /* Number of valid addresses */
 	} ibi;
 	struct k_sem ibi_lock_sem; /* Semaphore used for ibi requests */
+	bool hj_pm_lock;           /* Used as flag for setting pm */
 #endif
 };
 /**
@@ -1562,6 +1563,9 @@ static int i3c_stm32_init(const struct device *dev)
 
 #ifdef CONFIG_I3C_USE_IBI
 	LL_I3C_EnableHJAck(i3c);
+	hj_pm_lock = true;
+	(void)pm_device_runtime_get(dev);
+	pm_policy_state_lock_get(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
 #endif
 
 	return 0;
@@ -1895,6 +1899,34 @@ static void i3c_stm32_error_isr(void *arg)
 
 #ifdef CONFIG_I3C_USE_IBI
 
+int i3c_stm32_ibi_hj_response(const struct device *dev, bool ack)
+{
+	const struct i3c_stm32_config *config = dev->config;
+	I3C_TypeDef *i3c = config->i3c;
+
+	if (ack) {
+		/*
+		 * This prevents pm_device_runtime from being called multiple times
+		 * with redunant calls
+		 */
+		if (!hj_pm_lock) {
+			hj_pm_lock = true;
+			(void)pm_device_runtime_get(dev);
+			pm_policy_state_lock_get(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
+		}
+		LL_I3C_EnableHJAck(i3c);
+	} else {
+		LL_I3C_DisableHJAck(i3c);
+		if (hj_pm_lock) {
+			hj_pm_lock = false;
+			(void)pm_device_runtime_put(dev);
+			pm_policy_state_lock_put(PM_STATE_SUSPEND_TO_IDLE, PM_ALL_SUBSTATES);
+		}
+	}
+
+	return 0;
+}
+
 int i3c_stm32_ibi_enable(const struct device *dev, struct i3c_device_desc *target)
 {
 	int ret = 0;
@@ -2058,6 +2090,9 @@ static void i3c_stm32_dma_rs_cb(const struct device *dma_dev, void *user_data, u
 static DEVICE_API(i3c, i3c_stm32_driver_api) = {
 	.i2c_api.configure = i3c_stm32_i2c_configure,
 	.i2c_api.transfer = i3c_stm32_i2c_transfer,
+#ifdef CONFIG_I2C_RTIO
+	.i2c_api.iodev_submit = i2c_iodev_submit_fallback,
+#endif
 	.configure = i3c_stm32_configure,
 	.config_get = i3c_stm32_config_get,
 	.i3c_device_find = i3c_stm32_device_find,
@@ -2065,8 +2100,12 @@ static DEVICE_API(i3c, i3c_stm32_driver_api) = {
 	.do_daa = i3c_stm32_do_daa,
 	.do_ccc = i3c_stm32_do_ccc,
 #ifdef CONFIG_I3C_USE_IBI
+	.ibi_hj_response = i3c_stm32_ibi_hj_response,
 	.ibi_enable = i3c_stm32_ibi_enable,
 	.ibi_disable = i3c_stm32_ibi_disable,
+#endif
+#ifdef CONFIG_I3C_RTIO
+	.iodev_submit = i3c_iodev_submit_fallback,
 #endif
 };
 

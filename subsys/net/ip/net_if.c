@@ -350,39 +350,41 @@ void net_if_queue_tx(struct net_if *iface, struct net_pkt *pkt)
 		return;
 	}
 
+	size_t len = net_pkt_get_len(pkt);
 	uint8_t prio = net_pkt_priority(pkt);
 	uint8_t tc = net_tx_priority2tc(prio);
-
-	net_stats_update_tc_sent_pkt(iface, tc);
-	net_stats_update_tc_sent_bytes(iface, tc, net_pkt_get_len(pkt));
-	net_stats_update_tc_sent_priority(iface, tc, prio);
-
-	/* For highest priority packet, skip the TX queue and push directly to
-	 * the driver. Also if there are no TX queue/thread, push the packet
-	 * directly to the driver.
-	 */
-	if ((IS_ENABLED(CONFIG_NET_TC_SKIP_FOR_HIGH_PRIO) &&
-	     prio >= NET_PRIORITY_CA) || NET_TC_TX_COUNT == 0) {
-		net_pkt_set_tx_stats_tick(pkt, k_cycle_get_32());
-
-		net_if_tx(net_pkt_iface(pkt), pkt);
-		return;
-	}
 
 #if NET_TC_TX_COUNT > 1
 	NET_DBG("TC %d with prio %d pkt %p", tc, prio, pkt);
 #endif
 
-#if defined(CONFIG_NET_POWER_MANAGEMENT)
-	iface->tx_pending++;
-#endif
+	/* For highest priority packet, skip the TX queue and push directly to
+	 * the driver. Also if there are no TX queue/thread, push the packet
+	 * directly to the driver.
+	 */
+	if ((IS_ENABLED(CONFIG_NET_TC_TX_SKIP_FOR_HIGH_PRIO) &&
+	     prio >= NET_PRIORITY_CA) || NET_TC_TX_COUNT == 0) {
+		net_pkt_set_tx_stats_tick(pkt, k_cycle_get_32());
 
-	if (!net_tc_submit_to_tx_queue(tc, pkt)) {
+		net_if_tx(net_pkt_iface(pkt), pkt);
+	} else {
+		if (net_tc_submit_to_tx_queue(tc, pkt) != NET_OK) {
+			goto drop;
+		}
 #if defined(CONFIG_NET_POWER_MANAGEMENT)
-		iface->tx_pending--
+		iface->tx_pending++;
 #endif
-			;
 	}
+
+	net_stats_update_tc_sent_pkt(iface, tc);
+	net_stats_update_tc_sent_bytes(iface, tc, len);
+	net_stats_update_tc_sent_priority(iface, tc, prio);
+	return;
+
+drop:
+	net_pkt_unref(pkt);
+	net_stats_update_tc_sent_dropped(iface, tc);
+	return;
 }
 #endif /* CONFIG_NET_NATIVE */
 
@@ -631,6 +633,9 @@ struct net_if *net_if_get_default(void)
 #endif
 #if defined(CONFIG_NET_DEFAULT_IF_PPP)
 	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(PPP));
+#endif
+#if defined(CONFIG_NET_DEFAULT_IF_OFFLOADED_NETDEV)
+	iface = net_if_get_first_by_type(&NET_L2_GET_NAME(OFFLOADED_NETDEV));
 #endif
 #if defined(CONFIG_NET_DEFAULT_IF_UP)
 	iface = net_if_get_first_up();
@@ -4840,6 +4845,78 @@ static void iface_ipv4_start(struct net_if *iface)
 		net_if_start_acd(iface);
 	}
 }
+
+/* To be called when interface comes up so that all the non-joined multicast
+ * groups are joined.
+ */
+static void rejoin_ipv4_mcast_groups(struct net_if *iface)
+{
+	struct net_if_ipv4 *ipv4;
+
+	net_if_lock(iface);
+
+	if (!net_if_flag_is_set(iface, NET_IF_IPV4)) {
+		goto out;
+	}
+
+	if (net_if_config_ipv4_get(iface, &ipv4) < 0) {
+		goto out;
+	}
+
+	/* Rejoin any mcast address present on the interface, but marked as not joined. */
+	ARRAY_FOR_EACH(ipv4->mcast, i) {
+		int ret;
+
+		if (!ipv4->mcast[i].is_used ||
+		    net_if_ipv4_maddr_is_joined(&ipv4->mcast[i])) {
+			continue;
+		}
+
+		ret = net_ipv4_igmp_join(iface, &ipv4->mcast[i].address.in_addr, NULL);
+		if (ret < 0) {
+			NET_ERR("Cannot join mcast address %s for %d (%d)",
+				net_sprint_ipv4_addr(&ipv4->mcast[i].address.in_addr),
+				net_if_get_by_iface(iface), ret);
+		} else {
+			NET_DBG("Rejoined mcast address %s for %d",
+				net_sprint_ipv4_addr(&ipv4->mcast[i].address.in_addr),
+				net_if_get_by_iface(iface));
+		}
+	}
+
+out:
+	net_if_unlock(iface);
+}
+
+/* To be called when interface comes operational down so that multicast
+ * groups are rejoined when back up.
+ */
+static void clear_joined_ipv4_mcast_groups(struct net_if *iface)
+{
+	struct net_if_ipv4 *ipv4;
+
+	net_if_lock(iface);
+
+	if (!net_if_flag_is_set(iface, NET_IF_IPV4)) {
+		goto out;
+	}
+
+	if (net_if_config_ipv4_get(iface, &ipv4) < 0) {
+		goto out;
+	}
+
+	ARRAY_FOR_EACH(ipv4->mcast, i) {
+		if (!ipv4->mcast[i].is_used) {
+			continue;
+		}
+
+		net_if_ipv4_maddr_leave(iface, &ipv4->mcast[i]);
+	}
+
+out:
+	net_if_unlock(iface);
+}
+
 #endif /* CONFIG_NET_NATIVE_IPV4 */
 #else  /* CONFIG_NET_IPV4 */
 struct net_if_mcast_addr *net_if_ipv4_maddr_lookup(const struct in_addr *addr,
@@ -4872,6 +4949,7 @@ struct in_addr *net_if_ipv4_get_global_addr(struct net_if *iface,
 
 #if !defined(CONFIG_NET_NATIVE_IPV4)
 #define leave_ipv4_mcast_all(...)
+#define clear_joined_ipv4_mcast_groups(...)
 #define iface_ipv4_init(...)
 #define iface_ipv4_start(...)
 #endif /* !CONFIG_NET_NATIVE_IPV4 */
@@ -5351,7 +5429,11 @@ static void rejoin_multicast_groups(struct net_if *iface)
 	if (l2_flags_get(iface) & NET_L2_MULTICAST) {
 		join_mcast_allnodes(iface);
 	}
-#else
+#endif
+#if defined(CONFIG_NET_NATIVE_IPV4)
+	rejoin_ipv4_mcast_groups(iface);
+#endif
+#if !defined(CONFIG_NET_NATIVE_IPV6) && !defined(CONFIG_NET_NATIVE_IPV4)
 	ARG_UNUSED(iface);
 #endif
 }
@@ -5400,6 +5482,7 @@ static void notify_iface_down(struct net_if *iface)
 	    !(l2_flags_get(iface) & NET_L2_POINT_TO_POINT)) {
 		iface_ipv6_stop(iface);
 		clear_joined_ipv6_mcast_groups(iface);
+		clear_joined_ipv4_mcast_groups(iface);
 		net_ipv4_autoconf_reset(iface);
 	}
 }

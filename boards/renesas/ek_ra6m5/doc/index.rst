@@ -107,6 +107,14 @@ The below features are currently supported on Zephyr OS for EK-RA6M5 board:
 +-----------+------------+----------------------+
 | USBHS     | on-chip    | udc                  |
 +-----------+------------+----------------------+
+| ADC       | on-chip    | adc                  |
++-----------+------------+----------------------+
+| PWM       | on-chip    | pwm                  |
++-----------+------------+----------------------+
+| FLASH     | on-chip    | flash                |
++-----------+------------+----------------------+
+| ENTROPY   | on-chip    | entropy              |
++-----------+------------+----------------------+
 
 Other hardware features are currently not supported by the port.
 

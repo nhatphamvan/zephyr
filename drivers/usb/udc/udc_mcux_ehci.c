@@ -359,7 +359,7 @@ static bool udc_mcux_handler_zlt(const struct device *dev, uint8_t ep, struct ne
 			usb_status_t status;
 
 			udc_ep_buf_clear_zlp(buf);
-			status = mcux_if->deviceRecv(priv->mcux_device.controllerHandle,
+			status = mcux_if->deviceSend(priv->mcux_device.controllerHandle,
 					ep, NULL, 0);
 			if (status != kStatus_USB_Success) {
 				udc_submit_event(dev, UDC_EVT_ERROR, -EIO);
@@ -695,8 +695,7 @@ static int udc_mcux_init(const struct device *dev)
 
 #ifdef CONFIG_DT_HAS_NXP_USBPHY_ENABLED
 	if (config->phy_config != NULL) {
-		USB_EhciPhyInit(priv->controller_id, 0u,
-			(usb_phy_config_struct_t *)&config->phy_config);
+		USB_EhciPhyInit(priv->controller_id, 0u, config->phy_config);
 	}
 #endif
 

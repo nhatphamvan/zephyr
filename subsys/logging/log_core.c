@@ -330,8 +330,14 @@ static uint32_t z_log_init(bool blocking, bool can_sleep)
 
 	int backend_index = 0;
 
-	/* Activate autostart backends */
 	STRUCT_SECTION_FOREACH(log_backend, backend) {
+		uint32_t id;
+		/* As first slot in filtering mask is reserved, backend ID has offset.*/
+		id = LOG_FILTER_FIRST_BACKEND_SLOT_IDX;
+		id += backend - log_backend_get(0);
+		log_backend_id_set(backend, id);
+
+		/* Activate autostart backends */
 		if (backend->autostart) {
 			log_backend_init(backend);
 
@@ -991,5 +997,20 @@ static int enable_logger(void)
 
 	return 0;
 }
+
+#ifdef CONFIG_LOG_MODE_DEFERRED
+void log_flush(void)
+{
+	if (IS_ENABLED(CONFIG_LOG_PROCESS_THREAD)) {
+		while (log_data_pending()) {
+			k_sleep(K_MSEC(10));
+		}
+		k_sleep(K_MSEC(10));
+	} else {
+		while (LOG_PROCESS()) {
+		}
+	}
+}
+#endif
 
 SYS_INIT(enable_logger, POST_KERNEL, CONFIG_LOG_CORE_INIT_PRIORITY);

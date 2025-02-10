@@ -6,7 +6,6 @@
  * SPDX-License-Identifier: Apache-2.0
  */
 
-#include <errno.h>
 #include <stdint.h>
 #include <stdlib.h>
 #include <string.h>
@@ -19,13 +18,12 @@
 #include <zephyr/bluetooth/iso.h>
 #include <zephyr/fff.h>
 #include <zephyr/kernel.h>
-#include <zephyr/net/buf.h>
+#include <zephyr/net_buf.h>
 #include <zephyr/sys/printk.h>
 #include <zephyr/sys/util_macro.h>
 
 #include "bap_broadcast_source.h"
 #include "bap_stream.h"
-#include "bap_stream_expects.h"
 #include "bluetooth.h"
 #include "expects_util.h"
 #include "ztest_assert.h"

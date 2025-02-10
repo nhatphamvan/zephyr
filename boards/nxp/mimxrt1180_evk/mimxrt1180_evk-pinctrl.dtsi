@@ -73,6 +73,29 @@
 		};
 	};
 
+	pinmux_lpuart3: pinmux_lpuart3 {
+		group0 {
+			pinmux = <&iomuxc_gpio_ad_14_lpuart3_rxd>,
+				<&iomuxc_gpio_ad_13_lpuart3_txd>;
+			drive-strength = "high";
+			slew-rate = "fast";
+		};
+	};
+
+	pinmux_lpuart3_sleep: pinmux_lpuart3_sleep {
+		group0 {
+			pinmux = <&iomuxc_gpio_ad_14_gpio4_io14>;
+			drive-strength = "high";
+			bias-pull-up;
+			slew-rate = "fast";
+		};
+		group1 {
+			pinmux = <&iomuxc_gpio_ad_13_lpuart3_txd>;
+			drive-strength = "high";
+			slew-rate = "fast";
+		};
+	};
+
 	/* Connected to FXLS8974 */
 	pinmux_lpi2c2: pinmux_lpi2c2 {
 		group0 {
@@ -143,6 +166,23 @@
 			pinmux = <&iomuxc_gpio_b1_00_tpm5_ch0>;
 			drive-strength = "normal";
 			slew-rate = "slow";
+		};
+	};
+
+	pinmux_i3c2: pinmux_i3c2 {
+		group0 {
+			pinmux = <&iomuxc_gpio_ad_18_i3c2_scl>,
+				<&iomuxc_gpio_ad_19_i3c2_sda>;
+			drive-strength = "normal";
+			drive-open-drain;
+			slew-rate = "fast";
+			input-enable;
+		};
+
+		group1 {
+			pinmux = <&iomuxc_gpio_ad_17_i3c2_pur>;
+			slew-rate = "fast";
+			drive-strength = "high";
 		};
 	};
 };

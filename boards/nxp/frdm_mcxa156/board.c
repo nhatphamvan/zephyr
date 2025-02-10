@@ -116,12 +116,53 @@ static int frdm_mcxa156_init(void)
 	CLOCK_AttachClk(kFRO12M_to_LPUART0);
 #endif
 
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpuart1))
+	CLOCK_SetClockDiv(kCLOCK_DivLPUART1, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPUART1);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(ctimer0))
+	CLOCK_SetClockDiv(kCLOCK_DivCTIMER0, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_CTIMER0);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(ctimer1))
+	CLOCK_SetClockDiv(kCLOCK_DivCTIMER1, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_CTIMER1);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(ctimer2))
+	CLOCK_SetClockDiv(kCLOCK_DivCTIMER2, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_CTIMER2);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(ctimer3))
+	CLOCK_SetClockDiv(kCLOCK_DivCTIMER3, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_CTIMER3);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(ctimer4))
+	CLOCK_SetClockDiv(kCLOCK_DivCTIMER4, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_CTIMER4);
+#endif
+
 #if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(dac0))
 	SPC_EnableActiveModeAnalogModules(SPC0, kSPC_controlDac0);
 	CLOCK_SetClockDiv(kCLOCK_DivDAC0, 1u);
 	CLOCK_AttachClk(kFRO12M_to_DAC0);
 
 	CLOCK_EnableClock(kCLOCK_GateDAC0);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(flexcan0))
+	CLOCK_SetClockDiv(kCLOCK_DivFLEXCAN0, 1U);
+	CLOCK_SetClockDiv(kCLOCK_DivFRO_HF_DIV, 1U);
+	CLOCK_AttachClk(kFRO_HF_DIV_to_FLEXCAN0);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(flexio0))
+	CLOCK_SetClockDiv(kCLOCK_DivFLEXIO0, 1u);
+	CLOCK_AttachClk(kFRO_HF_to_FLEXIO0);
 #endif
 
 #if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpadc0))
@@ -135,6 +176,36 @@ static int frdm_mcxa156_init(void)
 	CLOCK_AttachClk(kFRO12M_to_CMP0);
 	CLOCK_SetClockDiv(kCLOCK_DivCMP0_FUNC, 1U);
 	SPC_EnableActiveModeAnalogModules(SPC0, (kSPC_controlCmp0 | kSPC_controlCmp0Dac));
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpi2c0))
+	CLOCK_SetClockDiv(kCLOCK_DivLPI2C0, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPI2C0);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpi2c1))
+	CLOCK_SetClockDiv(kCLOCK_DivLPI2C1, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPI2C1);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpi2c2))
+	CLOCK_SetClockDiv(kCLOCK_DivLPI2C2, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPI2C2);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpi2c3))
+	CLOCK_SetClockDiv(kCLOCK_DivLPI2C3, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPI2C3);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpspi0))
+	CLOCK_SetClockDiv(kCLOCK_DivLPSPI0, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPSPI0);
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lpspi1))
+	CLOCK_SetClockDiv(kCLOCK_DivLPSPI1, 1u);
+	CLOCK_AttachClk(kFRO12M_to_LPSPI1);
 #endif
 
 #if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(lptmr0))
@@ -154,6 +225,15 @@ static int frdm_mcxa156_init(void)
 	CLOCK_AttachClk(kFRO12M_to_LPTMR0);
 #endif /* DT_PROP(DT_NODELABEL(lptmr0), clk_source) */
 
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(usb))
+	RESET_PeripheralReset(kUSB0_RST_SHIFT_RSTn);
+	CLOCK_EnableUsbfsClock();
+#endif
+
+#if DT_NODE_HAS_STATUS_OKAY(DT_NODELABEL(wwdt0))
+	CLOCK_SetClockDiv(kCLOCK_DivWWDT0, 1u);
 #endif
 
 	/* Set SystemCoreClock variable. */
