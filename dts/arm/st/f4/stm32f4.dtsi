@@ -331,7 +331,7 @@
 			st,prescaler = <0>;
 			status = "disabled";
 
-			pwm {
+			pwm1: pwm {
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
@@ -354,13 +354,13 @@
 			st,prescaler = <0>;
 			status = "disabled";
 
-			pwm {
+			pwm2: pwm {
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
 			};
 
-			counter {
+			counter2: counter {
 				compatible = "st,stm32-counter";
 				status = "disabled";
 			};
@@ -438,7 +438,7 @@
 			st,prescaler = <0>;
 			status = "disabled";
 
-			pwm {
+			pwm5: pwm {
 				compatible = "st,stm32-pwm";
 				status = "disabled";
 				#pwm-cells = <3>;
