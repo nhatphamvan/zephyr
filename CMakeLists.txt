@@ -2162,6 +2162,20 @@ add_custom_command(
   COMMAND_EXPAND_LISTS
   )
 
+  # Add disassembly file
+  set(zephyr_disassembly_file ${CMAKE_BINARY_DIR}/zephyr_disassembly.txt)
+
+  add_custom_command(
+    TARGET ${logical_target_for_zephyr_elf}
+    POST_BUILD
+    COMMAND "${CROSS_COMPILE}objdump.exe"
+    -d ${PROJECT_BINARY_DIR}/${KERNEL_ELF_NAME}
+    > ${zephyr_disassembly_file}
+    COMMENT "Generating disassembly file for project"
+    COMMAND ${CMAKE_COMMAND} -E echo "Generating files from ${zephyr_disassembly_file} for board: ${BOARD}"
+  )
+
+
 # To populate with hex files to merge, do the following:
 #  set_property(GLOBAL APPEND PROPERTY HEX_FILES_TO_MERGE ${my_local_list})
 # Note that the zephyr.hex file will not be included automatically.
