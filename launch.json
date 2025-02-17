@@ -1,0 +1,36 @@
+{
+    // Use IntelliSense to learn about possible attributes.
+    // Hover to view descriptions of existing attributes.
+    // For more information, visit: https://go.microsoft.com/fwlink/?linkid=830387
+    "version": "0.2.0",
+    "configurations": [
+        {
+            "rtos": "Zephyr",
+            "cwd": "${workspaceFolder}",
+            "executable": "${workspaceFolder}/build/zephyr/zephyr.elf",
+            "name": "Debug Zephyr Launch",
+            "request": "launch",
+            "type": "cortex-debug",
+            "runToEntryPoint": "main",
+            "targetId": "stm32f411re",
+            "device": "STM32F411RE",
+            "interface": "swd",
+            "armToolchainPath": "/home/nhat-pham-van/zephyr-sdk-0.17.0/arm-zephyr-eabi/bin/",
+			"toolchainPrefix": "arm-zephyr-eabi",
+			"svdFile": "${workspaceFolder}/svd/STM32F411.svd",
+            "liveWatch": {
+				"enabled": true,
+				"samplesPerSecond": 1
+			  },
+            "servertype": "jlink",
+            // "serverArgs": 
+            // [
+            //     "-timeout", "10",
+            //     "-select" , "IP=tunnel:774497513:123456:jlink-asia.segger.com"
+            // ],
+        }
+    ]
+
+
+
+}
