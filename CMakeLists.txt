@@ -2172,7 +2172,7 @@ add_custom_command(
     -d ${PROJECT_BINARY_DIR}/${KERNEL_ELF_NAME}
     > ${zephyr_disassembly_file}
     COMMENT "Generating disassembly file for project"
-    COMMAND ${CMAKE_COMMAND} -E echo "Generating files from ${zephyr_disassembly_file} for board: ${BOARD}"
+    COMMAND ${CMAKE_COMMAND} -E echo"Generating files from ${zephyr_disassembly_file} for board: ${BOARD}"
   )
 
 
