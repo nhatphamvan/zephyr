@@ -3287,11 +3287,9 @@ static int common_init(void)
 	read_supported_commands_complete(rsp);
 	net_buf_unref(rsp);
 
-	if (IS_ENABLED(CONFIG_BT_HOST_CRYPTO_PRNG)) {
-		/* Initialize the PRNG so that it is safe to use it later
-		 * on in the initialization process.
-		 */
-		err = prng_init();
+	if (IS_ENABLED(CONFIG_BT_HOST_CRYPTO)) {
+		/* Initialize crypto for host */
+		err = bt_crypto_init();
 		if (err) {
 			return err;
 		}
@@ -3680,6 +3678,14 @@ static int le_init(void)
 	if (IS_ENABLED(CONFIG_BT_CHANNEL_SOUNDING) &&
 	    BT_FEAT_LE_CHANNEL_SOUNDING(bt_dev.le.features)) {
 		err = le_set_host_feature(BT_LE_FEAT_BIT_CHANNEL_SOUNDING_HOST, 1);
+		if (err) {
+			return err;
+		}
+	}
+
+	if (IS_ENABLED(CONFIG_BT_EXT_ADV_CODING_SELECTION) &&
+	    BT_FEAT_LE_ADV_CODING_SEL(bt_dev.le.features)) {
+		err = le_set_host_feature(BT_LE_FEAT_BIT_ADV_CODING_SEL_HOST, 1);
 		if (err) {
 			return err;
 		}
