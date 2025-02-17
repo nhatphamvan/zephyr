@@ -8,7 +8,7 @@
 #include <zephyr/sys/printk.h>
 #include <zephyr/drivers/i2c.h>
 
-static const struct device *bus = DEVICE_DT_GET(DT_NODELABEL(flexcomm4));
+static const struct device *bus = DEVICE_DT_GET(DT_NODELABEL(i2c0));
 static char last_byte;
 
 /*
@@ -78,7 +78,7 @@ static struct i2c_target_callbacks sample_target_callbacks = {
 int main(void)
 {
 	struct i2c_target_config target_cfg = {
-		.address = 0x60,
+		.address = 0x50,
 		.callbacks = &sample_target_callbacks,
 	};
 
